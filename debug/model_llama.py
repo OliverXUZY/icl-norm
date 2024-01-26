@@ -3,7 +3,7 @@ import torch
 import random
 import argparse
 import os
-from transformers import LlamaForCausalLM, LlamaTokenizer
+from transformers import LlamaForCausalLM, LlamaTokenizer, AutoTokenizer, AutoModelForCausalLM
 import sys
 sys.path.insert(0,"/Users/zyxu/Documents/py/nlp/zms")
 
@@ -17,7 +17,7 @@ def _add_hooks(model):
         attention_matrices.append(output[1].clone())  # output[1] contains the attention matrix
 
     # Register the hook for each multi-head attention layer in each block
-    for block in model.h:  # 'h' attribute contains the blocks in GPT-2 model
+    for block in model.layers:  # 'h' attribute contains the blocks in GPT-2 model
         block.attn.register_forward_hook(attention_hook)
 
     return attention_matrices
@@ -25,10 +25,10 @@ def _add_hooks(model):
 
 def main():
 
-    
+    model_path = "meta-llama/Llama-2-7b-hf"
 
-    tokenizer = LlamaTokenizer.from_pretrained("/output/path")
-    model = LlamaForCausalLM.from_pretrained("/output/path")
+    tokenizer = LlamaTokenizer.from_pretrained(model_path)
+    model = LlamaForCausalLM.from_pretrained(model_path)
 
     print(model)
     # print("len(model.h): ", len(model.h))
