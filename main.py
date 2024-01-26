@@ -107,6 +107,8 @@ def main():
     
 
     # Saving the list of tensors to a file
+    indices = load_json("data/indices.json")
+    
     save_name = model_path.split("/")[1]
     torch.save(attention_matrices, f'save/attn_mtx_{save_name}.pth')
 
@@ -130,7 +132,7 @@ def main():
         norms.append(tmp)
 
     
-    norms = np.array(f"save/norms_{save_name}.pth", norms)
+    norms = np.array(f"save/norms_{save_name}.npy", norms)
 
 
     
