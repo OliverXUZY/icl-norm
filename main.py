@@ -2,12 +2,13 @@ from transformers import GPT2Model, GPT2Tokenizer, GPT2Config
 from transformers import LlamaForCausalLM, LlamaTokenizer, LlamaConfig
 import argparse
 from datasets import load_dataset
+import numpy as np
 import torch
 import random
-from utils import save_json
+from utils import save_json, load_json
 # Check if CUDA is available
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = "cpu"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = "cpu"
 # Define the hook function
 
 def parse_args():
@@ -115,9 +116,9 @@ def main():
     pos = []
     neg = []
     i = 0
-    while i < len(attn_matrix)-1:
-        pos.append(attn_matrix[i])
-        neg.append(attn_matrix[i+1])
+    while i < len(attention_matrices)-1:
+        pos.append(attention_matrices[i])
+        neg.append(attention_matrices[i+1])
         i += 2
     
     norms = []
