@@ -23,11 +23,16 @@ def add_attention_hooks(model):
     attention_matrices = []
 
     def attention_hook(module, input, output):
+        # print("len(output): ", len(output))
         attention_matrix = output[1]  # This gets the actual attention matrix
+        # print("attention_matrix", attention_matrix)
+        # print("len(attention_matrix): ", len(attention_matrix))
         attention_matrix = attention_matrix.squeeze().mean(0)
+        print("attention_matrix.shape: ", attention_matrix.shape)
         attention_matrices.append(attention_matrix.clone())
 
-    
+    # for block in model.model.layers:
+    #     block.self_attn.register_forward_hook(attention_hook)
     block_id = len(model.model.layers) - 1
     block = model.model.layers[block_id]
     block.self_attn.register_forward_hook(attention_hook)
@@ -53,6 +58,7 @@ def main():
         model = LlamaForCausalLM.from_pretrained(model_path,device_map='auto')
                                     #attn_implementation="eager"                                                 
         model.config.output_attentions = True
+        # model = model.to(device)
         
         # Prepare the dataset
         cache_dir = "./data/cache"
@@ -79,8 +85,19 @@ def main():
 
             # Preprocess the text
             inputs_right = tokenizer(inp_right, return_tensors='pt')
+            print(inp_right)
+            # print(inputs_right)
+            print("length of tokens: ", inputs_right['input_ids'].shape)
+
+            
             inputs_wrong = tokenizer(inp_wrong, return_tensors='pt')
             
+
+            print(inp_wrong)
+            # print(inputs_wrong)nvidia
+            print("length of tokens: ", inputs_wrong['input_ids'].shape)
+
+            # assert False
             # Forward pass through the model
             inputs_right = inputs_right.to(device)
             inputs_wrong = inputs_wrong.to(device)
@@ -91,7 +108,9 @@ def main():
                 outputs = model(**inputs_wrong)
         
 
-        
+        print(type(attention_matrices))
+
+        print(len(attention_matrices))
 
         torch.save(attention_matrices, save_path)
 
@@ -99,6 +118,7 @@ def main():
     # Saving the list of tensors to a file
     indices = load_json("data/indices.json")
 
+    # print(attention_matrices[0].get_device())
 
     pos = []
     neg = []
