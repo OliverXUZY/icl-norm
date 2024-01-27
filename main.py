@@ -55,9 +55,8 @@ def main():
         tokenizer = LlamaTokenizer.from_pretrained(model_path)
         
         # Set output_attentions to True
-        model = LlamaForCausalLM.from_pretrained(model_path,
-                                    attn_implementation="eager",
-                                    device_map='auto')
+        model = LlamaForCausalLM.from_pretrained(model_path,device_map='auto')
+                                    #attn_implementation="eager"                                                 
         model.config.output_attentions = True
         # model = model.to(device)
         
