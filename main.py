@@ -5,6 +5,7 @@ from datasets import load_dataset
 import numpy as np
 import torch
 import random
+import os
 from utils import save_json, load_json
 # Check if CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -44,74 +45,81 @@ def main():
     args = parse_args()
     model_path = args.model_id
 
-    tokenizer = LlamaTokenizer.from_pretrained(model_path)
-    
-    # Set output_attentions to True
-    model = LlamaForCausalLM.from_pretrained(model_path,
-                                attn_implementation="eager",
-                                device_map='auto')
-    model.config.output_attentions = True
-    mofrl = model.to(device)
-    
-    # Prepare the dataset
-    cache_dir = "./data/cache"
-    data_files = "./GSM-IC/GSM-IC_2step.json"
-    dataset = load_dataset("json", data_files=data_files, cache_dir=cache_dir, split = "train")
+    save_name = model_path.split("/")[1]
 
-    # Add hooks to the model
-    attention_matrices = add_attention_hooks(model)
-
-    model.eval()
-    # Sampling and forward pass
-    random.seed(42)  # Set the seed for reproducibility
-    for _ in range(args.batch_size):
-        # Randomly sample an example
-        ex = random.choice(dataset)
+    save_path = f'save/attn_mtx_{save_name}.pth'
+    if os.path.exists(save_path):
+        print("load intermediate results")
+        attention_matrices  = torch.load(save_path)
+    else:
+        tokenizer = LlamaTokenizer.from_pretrained(model_path)
         
-        # Define the substring you are looking for
-        substring = ex['sentence_template'].format(role=ex['role'], number=ex['number'])
-
-        inp_right = ex['new_question'] + " " + ex['answer']
-
-        wrong = "23" if ex['answer'] != "23" else "307"
-        inp_wrong = ex['new_question'] + " " + wrong
-
-        # Preprocess the text
-        inputs_right = tokenizer(inp_right, return_tensors='pt')
-        print(inp_right)
-        # print(inputs_right)
-        print("length of tokens: ", inputs_right['input_ids'].shape)
-
+        # Set output_attentions to True
+        model = LlamaForCausalLM.from_pretrained(model_path,
+                                    attn_implementation="eager",
+                                    device_map='auto')
+        model.config.output_attentions = True
+        # model = model.to(device)
         
-        inputs_wrong = tokenizer(inp_wrong, return_tensors='pt')
+        # Prepare the dataset
+        cache_dir = "./data/cache"
+        data_files = "./GSM-IC/GSM-IC_2step.json"
+        dataset = load_dataset("json", data_files=data_files, cache_dir=cache_dir, split = "train")
+
+        # Add hooks to the model
+        attention_matrices = add_attention_hooks(model)
+
+        model.eval()
+        # Sampling and forward pass
+        random.seed(42)  # Set the seed for reproducibility
+        for _ in range(args.batch_size):
+            # Randomly sample an example
+            ex = random.choice(dataset)
+            
+            # Define the substring you are looking for
+            substring = ex['sentence_template'].format(role=ex['role'], number=ex['number'])
+
+            inp_right = ex['new_question'] + " " + ex['answer']
+
+            wrong = "23" if ex['answer'] != "23" else "307"
+            inp_wrong = ex['new_question'] + " " + wrong
+
+            # Preprocess the text
+            inputs_right = tokenizer(inp_right, return_tensors='pt')
+            print(inp_right)
+            # print(inputs_right)
+            print("length of tokens: ", inputs_right['input_ids'].shape)
+
+            
+            inputs_wrong = tokenizer(inp_wrong, return_tensors='pt')
+            
+
+            print(inp_wrong)
+            # print(inputs_wrong)nvidia
+            print("length of tokens: ", inputs_wrong['input_ids'].shape)
+
+            # assert False
+            # Forward pass through the model
+            inputs_right = inputs_right.to(device)
+            inputs_wrong = inputs_wrong.to(device)
+            with torch.no_grad():
+                outputs = model(**inputs_right)
+            # Forward pass through the model
+            with torch.no_grad():
+                outputs = model(**inputs_wrong)
         
 
-        print(inp_wrong)
-        # print(inputs_wrong)nvidia
-        print("length of tokens: ", inputs_wrong['input_ids'].shape)
+        print(type(attention_matrices))
 
-        # assert False
-        # Forward pass through the model
-        inputs_right = inputs_right.to(device)
-        inputs_wrong = inputs_wrong.to(device)
-        with torch.no_grad():
-            outputs = model(**inputs_right)
-        # Forward pass through the model
-        with torch.no_grad():
-            outputs = model(**inputs_wrong)
-    
+        print(len(attention_matrices))
 
-    print(type(attention_matrices))
+        torch.save(attention_matrices, save_path)
 
-    print(len(attention_matrices))
-
-    
 
     # Saving the list of tensors to a file
     indices = load_json("data/indices.json")
-    
-    save_name = model_path.split("/")[1]
-    torch.save(attention_matrices, f'save/attn_mtx_{save_name}.pth')
+
+    # print(attention_matrices[0].get_device())
 
     pos = []
     neg = []
@@ -132,8 +140,9 @@ def main():
 
         norms.append(tmp)
 
+    norms = torch.tensor(norms).cpu().numpy()
     
-    norms = np.array(f"save/norms_{save_name}.npy", norms)
+    norms = np.save(f"save/norms_{save_name}.npy", norms)
 
 
     
